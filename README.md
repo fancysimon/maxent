@@ -1,4 +1,4 @@
 maxent
 ======
 
-maxent
+maxent in python
