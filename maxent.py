@@ -5,6 +5,7 @@ import logging
 from common import *
 from instance import Instance
 from gis import Gis
+from model import Model
 
 def ParseOptions():
     parser = argparse.ArgumentParser(description='Maxent')
@@ -25,6 +26,15 @@ def ParseOptions():
                         dest="output",
                         default="",
                         help="Output file.")
+    parser.add_argument("-a", "--algorithm",
+                        dest="algorithm",
+                        default="gis",
+                        help="Algorithm to train maxent. gis or lbfgs. default=gis")
+    parser.add_argument("-c", "--cutoff",
+                        dest="cutoff",
+                        default=1,
+                        type=int
+                        help="Cutoff to select feature. default=1")
     
     options = parser.parse_args()
     if options.model == '':
@@ -36,6 +46,10 @@ def ParseOptions():
             print 'output must be specified when predict.'
             parser.print_help()
             sys.exit(1)
+    if options.algorithm != 'gis' and options.algorithm != 'lbfgs':
+        print 'Training algorithm must be gis or lbfgs.'
+        parser.print_help()
+        sys.exit(1)
     return options
 
 def LoadInstances():
@@ -63,6 +77,16 @@ def Train(options):
     if instances == None:
         logging.error('Training instances format is not valid.')
         sys.exit(1)
+    model = Model()
+    model.SetCutoff(options.cutoff)
+    model.InitFromInstances(instances)
+    optimizer = None
+    if options.algorithm == 'gis':
+        optimizer = GisOptimizer()
+    else:
+        optimizer = LbfgsOptimizer()
+    optimizer.EstimateParamater(model)
+    model.Save(options.output)
 
 def Predict(options):
     pass

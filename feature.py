@@ -28,6 +28,14 @@ class FeatureDict:
     def Size(self):
         return len(self.feature_dict)
 
+    # def ToList(self):
+    #     feature_list = []
+    #     for feature in self.feature_dict:
+    #         weight = self.feature_dict[feature.weigth = ]
+    #         feature.weight = weight
+    #         feature_list.append(feature)
+    #     return feature_list
+
 if __name__ == '__main__':
     a = Feature(1, 'a', 'b')
     b = Feature(1, 'a', 'b')
