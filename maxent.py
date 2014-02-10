@@ -80,12 +80,12 @@ def Train(options):
     model = Model()
     model.SetCutoff(options.cutoff)
     model.InitFromInstances(instances)
-    optimizer = None
+    trainer = None
     if options.algorithm == 'gis':
-        optimizer = GisOptimizer()
+        trainer = GISTrainer()
     else:
-        optimizer = LbfgsOptimizer()
-    optimizer.EstimateParamater(model)
+        trainer = LBFGSTrainer()
+    trainer.Train(model)
     model.Save(options.output)
 
 def Predict(options):
