@@ -4,11 +4,11 @@ import argparse
 import logging
 from common import *
 from instance import Instance
-from gis import Gis
+from gis_trainer import GISTrainer
 from model import Model
 
 def ParseOptions():
-    parser = argparse.ArgumentParser(description='Maxent')
+    parser = argparse.ArgumentParser(description='Maxent. Read data from argv or stdin.')
     parser.add_argument("-m", "--model",
                         dest="model",
                         default="",
@@ -33,8 +33,12 @@ def ParseOptions():
     parser.add_argument("-c", "--cutoff",
                         dest="cutoff",
                         default=1,
-                        type=int
+                        type=int,
                         help="Cutoff to select feature. default=1")
+    parser.add_argument('input',
+                        nargs='?',
+                        type=argparse.FileType('r'),
+                        default=sys.stdin)
     
     options = parser.parse_args()
     if options.model == '':
@@ -52,28 +56,21 @@ def ParseOptions():
         sys.exit(1)
     return options
 
-def LoadInstances():
-    field_num = -1
+def LoadInstances(input_file):
     instances = []
     print 'LoadInstances'
-    for line in sys.stdin:
+    for line in input_file:
         line = line.rstrip('\n')
         if line == '':
             break
         instance = Instance()
         instance.LoadFromText(line)
-        if field_num == -1:
-            field_num = instance.FeatureSize()
-        else:
-            if field_num != instance.FeatureSize():
-                logging.error('Fields number is not equal.')
-                return None
         instances.append(instance)
     print 'LoadInstances end'
     return instances
 
 def Train(options):
-    instances = LoadInstances()
+    instances = LoadInstances(options.input)
     if instances == None:
         logging.error('Training instances format is not valid.')
         sys.exit(1)
@@ -85,7 +82,7 @@ def Train(options):
         trainer = GISTrainer()
     else:
         trainer = LBFGSTrainer()
-    trainer.Train(model)
+    trainer.Train(instances, model, options.iter, options.model)
     model.Save(options.output)
 
 def Predict(options):
