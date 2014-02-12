@@ -82,8 +82,8 @@ def Train(options):
         trainer = GISTrainer()
     else:
         trainer = LBFGSTrainer()
-    trainer.Train(instances, model, options.iter, options.model)
-    model.Save(options.output)
+    trainer.Train(instances, model, options.iter)
+    model.Save(options.model)
 
 def Predict(options):
     pass

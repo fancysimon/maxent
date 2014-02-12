@@ -37,8 +37,6 @@ class Model:
         self = model
 
     def Save(self, model_name):
-        print 'save'
-        print 'model_name:', model_name
         output = open(model_name, 'wb')
         pickle.dump(self, output)
         output.close()

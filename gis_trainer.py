@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from trainer import Trainer
+from feature import Feature
 import math
 
 class GISTrainer(Trainer):
@@ -12,31 +13,33 @@ class GISTrainer(Trainer):
         self.marginal_probabilities = []    # Z(x)
         self.feature_id_map = {}
         self.context_id_map = {}
-        self.sum_count = 0                  # N
+        self.sum_count = 0                  # N: instance count
         self.context_counts = []            # Count(x)
-        self.log_likelihood = None
+        self.log_likelihood = 99999
 
-    def Train(self, instances, model, iterations, model_name):
-        self.__InitFromModel(model)
+    def Train(self, instances, model, iterations):
+        print 'iters   loglikelihood    training accuracy'
+        print '=========================================='
+        self.__InitFromModel(instances, model)
         self.__ComputeCorrectionConstant(instances)
         self.__ComputeEmpiricalExpectation(model)
         parameters = [0] * model.feature_size
-        for i in range(iterations):
+        for i in range(1, iterations+1):
             self.__ComputeModelExpectation(model)
-            if self.log_likelihood == None:
-                self.log_likelihood = self.__ComputeLogLikelihood(model)
-            self.__UpdateParameters(model)
             new_log_likelihood = self.__ComputeLogLikelihood(model)
+            correct_rate = self.__ComputeCorrectRate(instances, model)
+            print '  %d\t%.6f\t %.1f%%' % (i, new_log_likelihood/self.sum_count, correct_rate * 100)
+            #print 'parameters:', model.parameters
+            self.__UpdateParameters(model)
             if self.__IsConverged(new_log_likelihood):
                 break
             self.log_likelihood = new_log_likelihood
-        model.Save(model_name)
+        print '=========================================='
 
-    def __InitFromModel(self, model):
+    def __InitFromModel(self, instances, model):
         feature_id = 0
         context_id = 0
         # Generate |feature_id| and |context_id|.
-        print model.feature_map
         for feature in model.feature_map:
             self.feature_id_map[feature] = feature_id
             feature_id += 1
@@ -48,8 +51,10 @@ class GISTrainer(Trainer):
         for feature in model.feature_map:
             context_id = self.context_id_map[feature.context]
             feature_list = model.feature_map[feature]
-            self.sum_count += len(feature_list)
             self.context_counts[context_id] += len(feature_list)
+        self.sum_count = len(instances)
+        print 'self.sum_count:', self.sum_count
+        print 'self.context_counts:', self.context_counts
 
     def __ComputeEmpiricalExpectation(self, model):
         # Ep(f_i) = \sum_{x,y} p(x,y) * f_i(x,y)
@@ -62,6 +67,7 @@ class GISTrainer(Trainer):
             feature_id = self.feature_id_map[feature]
             expectations[feature_id] = expectation
         self.empirical_expectations = expectations
+        print 'self.empirical_expectations:', self.empirical_expectations
 
     def __ComputeConditionProbability(self, model):
         # q(y|x) = 1 / Z(x) * exp( \sum_i (lambda_i * f_i(x,y) ) )
@@ -85,6 +91,10 @@ class GISTrainer(Trainer):
             context_id = self.context_id_map[feature.context]
             self.condition_probabilities[feature_id] /= \
                     self.marginal_probabilities[context_id]
+            print 'context_id:', context_id, self.condition_probabilities[feature_id], self.marginal_probabilities[context_id]
+        print 'condition_probabilities:', self.condition_probabilities
+        print 'marginal_probabilities:', self.marginal_probabilities
+        # TODO: condition_probabilities 必须基于instance计算, 模型期望也同理
 
     def __ComputeModelExpectation(self, model):
         # Eq(f_i) = \sum_{x,y} q(y|x) * p(x) * f_i(x, y)
@@ -95,8 +105,6 @@ class GISTrainer(Trainer):
             context_id = self.context_id_map[feature.context]
             feature_list = model.feature_map[feature]
             for feature2 in feature_list:
-                print context_id, self.context_counts
-                print 'feature_id:', feature_id, self.condition_probabilities, self.model_expectations
                 self.model_expectations[feature_id] += \
                         self.condition_probabilities[feature_id] * \
                         self.context_counts[context_id] * feature.value
@@ -121,6 +129,7 @@ class GISTrainer(Trainer):
                     math.log(self.empirical_expectations[feature_id] / \
                             self.model_expectations[feature_id])
         model.parameters = parameters
+        print 'parameters:', parameters
 
     def __ComputeLogLikelihood(self, model):
         # L(p) = \sum_{x,y} p(x,y) * log( q(y|x) )
@@ -133,6 +142,36 @@ class GISTrainer(Trainer):
         return log_likelihood
 
     def __IsConverged(self, new_log_likelihood):
-        if abs(new_log_likelihood - self.log_likelihood) < self.error_threshold:
+        if abs(new_log_likelihood - self.log_likelihood) / self.log_likelihood < self.error_threshold:
             return True
         return False
+
+    def __ComputeLabelForInstance(self, instance, model):
+        probabilities = [0.0] * len(model.labels)
+        for feature in instance.features:
+            context = feature.context
+            context_id = self.context_id_map[context]
+            for i in range(len(probabilities)):
+                label = model.labels[i]
+                feature2 = Feature(context, label, 0)
+                if feature2 in self.feature_id_map:
+                    feature_id = self.feature_id_map[feature2]
+                    parameter = model.parameters[feature_id]
+                    probabilities[i] += parameter * feature.value
+        label = None
+        max_probability = -1
+        for i in range(len(probabilities)):
+            if probabilities[i] > max_probability:
+                label = model.labels[i]
+                max_probability = probabilities[i]
+        return label
+
+    def __ComputeCorrectRate(self, instances, model):
+        correct_instance_count = 0
+        sum_instance_count = 0
+        for instance in instances:
+            label = self.__ComputeLabelForInstance(instance, model)
+            if label == instance.label:
+                correct_instance_count += 1
+            sum_instance_count += 1
+        return float(correct_instance_count) / sum_instance_count
