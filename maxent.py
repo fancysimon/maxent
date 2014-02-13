@@ -6,6 +6,7 @@ from common import *
 from instance import Instance
 from gis_trainer import GISTrainer
 from model import Model
+from predicter import Predicter
 
 def ParseOptions():
     parser = argparse.ArgumentParser(description='Maxent. Read data from argv or stdin.')
@@ -86,7 +87,20 @@ def Train(options):
     model.Save(options.model)
 
 def Predict(options):
-    pass
+    prodicter = Predicter()
+    model = Model.Load(options.model)
+    instances = LoadInstances(options.input)
+    output_file = open(options.output, 'w')
+    correct_count = 0
+    sum_count = 0
+    for instance in instances:
+        label, probabilities = prodicter.Predict(instance, model)
+        if label == instance.label:
+            correct_count += 1
+        sum_count += 1
+        output_file.write(label + '\t' + str(probabilities) + '\n')
+    output_file.close()
+    print float(correct_count) / sum_count
 
 def Main():
     options = ParseOptions()

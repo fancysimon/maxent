@@ -11,6 +11,9 @@ class Model:
         self.labels = []
         self.contexts = []
         self.feature_map = {}
+        self.feature_id_map = {}
+        self.context_id_map = {}
+        self.label_id_map = {}
 
     def InitFromInstances(self, instances):
         label_map = {}
@@ -30,11 +33,26 @@ class Model:
         self.feature_size = len(self.feature_map)
         self.parameters = [0.0] * self.feature_size
 
-    def Load(self, model_name):
+        # Generate |feature_id|, |context_id| and |label_id|.
+        feature_id = 0
+        context_id = 0
+        for feature in self.feature_map:
+            self.feature_id_map[feature] = feature_id
+            feature_id += 1
+            if feature.context not in self.context_id_map:
+                self.context_id_map[feature.context] = context_id
+                context_id += 1
+        label_id = 0
+        for label in self.labels:
+            self.label_id_map[label] = label_id
+            label_id += 1
+
+    @staticmethod
+    def Load(model_name):
         input_file = open(model_name, 'rb')
         model = pickle.load(input_file)
         input_file.close()
-        self = model
+        return model
 
     def Save(self, model_name):
         output = open(model_name, 'wb')

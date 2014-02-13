@@ -11,9 +11,6 @@ class GISTrainer(Trainer):
         self.correct_constant = 0           # C
         self.condition_probabilities = []   # q(y|x)
         self.marginal_probabilities = []    # Z(x)
-        self.feature_id_map = {}
-        self.context_id_map = {}
-        self.label_id_map = {}
         self.sum_count = 0                  # N: instance count
         self.context_counts = []            # Count(x)
         self.log_likelihood = 99999
@@ -39,25 +36,12 @@ class GISTrainer(Trainer):
         print '=========================================='
 
     def __InitFromModel(self, instances, model):
-        feature_id = 0
-        context_id = 0
-        # Generate |feature_id| and |context_id|.
-        for feature in model.feature_map:
-            self.feature_id_map[feature] = feature_id
-            feature_id += 1
-            if feature.context not in self.context_id_map:
-                self.context_id_map[feature.context] = context_id
-                context_id += 1
-        label_id = 0
-        for label in model.labels:
-            self.label_id_map[label] = label_id
-            label_id += 1
         # Compute |sum_count| and |context_counts|.
-        self.context_counts = [0] * context_id
+        self.context_counts = [0] * len(model.context_id_map)
         for instance in instances:
             context_id_map = {}
             for feature in instance.features:
-                context_id = self.context_id_map[feature.context]
+                context_id = model.context_id_map[feature.context]
                 context_id_map[context_id] = 1
             for context_id in context_id_map:
                 self.context_counts[context_id] += 1
@@ -70,13 +54,13 @@ class GISTrainer(Trainer):
         expectations = [0] * model.feature_size
         for instance in instances:
             for feature in instance.features:
-                context_id = self.context_id_map[feature.context]
-                feature_id = self.feature_id_map[feature]
+                context_id = model.context_id_map[feature.context]
+                feature_id = model.feature_id_map[feature]
                 expectations[feature_id] += 1.0 / self.sum_count * feature.value
         self.empirical_expectations = expectations
         print 'self.empirical_expectations:', self.empirical_expectations
 
-    def __ComputeConditionProbability(self, instance, model):
+    def ComputeConditionProbability(self, instance, model):
         # q(y|x) = 1 / Z(x) * exp( \sum_i (lambda_i * f_i(x,y) ) )
         # Z(x) = \sum_y exp( \sum_i (lambda_i * f_i(x,y)) )
         probabilities = [0.0] * len(model.labels)
@@ -84,15 +68,15 @@ class GISTrainer(Trainer):
         #print 'features:', instance.features
         for feature in instance.features:
             context = feature.context
-            context_id = self.context_id_map[context]
+            context_id = model.context_id_map[context]
             
             for i in range(len(probabilities)):
                 label = model.labels[i]
                 feature2 = Feature(context, label, 0)
-                if feature2 in self.feature_id_map:
-                    feature_id = self.feature_id_map[feature2]
+                if feature2 in model.feature_id_map:
+                    feature_id = model.feature_id_map[feature2]
                     parameter = model.parameters[feature_id]
-                    label_id = self.label_id_map[label]
+                    label_id = model.label_id_map[label]
                     probabilities[label_id] += parameter * feature.value
         #print 'probabilities:', probabilities
         
@@ -110,9 +94,9 @@ class GISTrainer(Trainer):
         
         sum_probability = sum(probabilities)
         for i in range(len(probabilities)):
-            self.condition_probabilities[i] = float(probabilities[i]) / sum_probability
+            probabilities[i] = float(probabilities[i]) / sum_probability
         #print 'self.condition_probabilities:', self.condition_probabilities
-        return label
+        return label, probabilities
 
     def __ComputeModelExpectation(self, instances, model):
         # Eq(f_i) = \sum_{x,y} q(y|x) * p(x) * f_i(x, y)
@@ -121,24 +105,25 @@ class GISTrainer(Trainer):
         correct_instance_count = 0
         log_likelihood = 0
         for instance in instances:
-            label = self.__ComputeConditionProbability(instance, model)
+            label, self.condition_probabilities = \
+                    self.ComputeConditionProbability(instance, model)
             #print 'label select:', label
             #print 'self.condition_probabilities:', self.condition_probabilities
             if label == instance.label:
                 correct_instance_count += 1
             for feature in instance.features:
-                context_id = self.context_id_map[feature.context]
+                context_id = model.context_id_map[feature.context]
                 for i in range(len(model.labels)):
                     label = model.labels[i]
-                    label_id = self.label_id_map[label]
+                    label_id = model.label_id_map[label]
                     feature2 = Feature(feature.context, label, 0)
-                    if feature2 in self.feature_id_map:
-                        feature_id = self.feature_id_map[feature2]
+                    if feature2 in model.feature_id_map:
+                        feature_id = model.feature_id_map[feature2]
                         self.model_expectations[feature_id] += \
                                 self.condition_probabilities[label_id] * \
                                 self.context_counts[context_id] / \
                                 self.sum_count * feature.value
-                label_id2 = self.label_id_map[instance.label]
+                label_id2 = model.label_id_map[instance.label]
                 log_condition_probability = \
                         self.__SafeLog(self.condition_probabilities[label_id2])
                 log_likelihood += 1.0 / self.sum_count * \
@@ -160,8 +145,8 @@ class GISTrainer(Trainer):
     def __UpdateParameters(self, model):
         parameters = [0] * model.feature_size
         for feature in model.feature_map:
-            if feature in self.feature_id_map:
-                feature_id = self.feature_id_map[feature]
+            if feature in model.feature_id_map:
+                feature_id = model.feature_id_map[feature]
                 parameters[feature_id] = \
                         model.parameters[feature_id] + \
                         1.0 / self.correct_constant * \
