@@ -68,6 +68,7 @@ def LoadInstances(input_file):
         instance.LoadFromText(line)
         instances.append(instance)
     print 'LoadInstances end'
+    sys.stdout.flush()
     return instances
 
 def Train(options):

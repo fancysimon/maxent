@@ -19,7 +19,10 @@ class Instance:
             sub_fields = field.split(':')
             value = 1.0
             if len(sub_fields) == 2:
-                value = float(sub_fields[1])
+                try:
+                    value = float(sub_fields[1])
+                except:
+                    value = 1.0
             feature = Feature(sub_fields[0], self.label, value)
             self.features.append(feature)
         return True

@@ -2,6 +2,7 @@
 from trainer import Trainer
 from feature import Feature
 import math
+import sys
 
 class GISTrainer(Trainer):
     def __init__(self):
@@ -29,6 +30,7 @@ class GISTrainer(Trainer):
                     self.__ComputeModelExpectation(instances, model)
             #print 'new_log_likelihood:', new_log_likelihood
             print '  %d\t%.6f\t %.1f%%' % (i, new_log_likelihood/self.sum_count, correct_rate * 100)
+            sys.stdout.flush()
             self.__UpdateParameters(model)
             if self.__IsConverged(new_log_likelihood):
                 break
@@ -46,8 +48,8 @@ class GISTrainer(Trainer):
             for context_id in context_id_map:
                 self.context_counts[context_id] += 1
         self.sum_count = len(instances)
-        print 'self.sum_count:', self.sum_count
-        print 'self.context_counts:', self.context_counts
+        print 'Instance number:', self.sum_count
+        #print 'self.context_counts:', self.context_counts
 
     def __ComputeEmpiricalExpectation(self, instances, model):
         # Ep(f_i) = \sum_{x,y} p(x,y) * f_i(x,y)
@@ -58,7 +60,7 @@ class GISTrainer(Trainer):
                 feature_id = model.feature_id_map[feature]
                 expectations[feature_id] += 1.0 / self.sum_count * feature.value
         self.empirical_expectations = expectations
-        print 'self.empirical_expectations:', self.empirical_expectations
+        #print 'self.empirical_expectations:', self.empirical_expectations
 
     def ComputeConditionProbability(self, instance, model):
         # q(y|x) = 1 / Z(x) * exp( \sum_i (lambda_i * f_i(x,y) ) )
@@ -68,7 +70,7 @@ class GISTrainer(Trainer):
         #print 'features:', instance.features
         for feature in instance.features:
             context = feature.context
-            context_id = model.context_id_map[context]
+            #context_id = model.context_id_map[context]
             
             for i in range(len(probabilities)):
                 label = model.labels[i]
@@ -95,7 +97,7 @@ class GISTrainer(Trainer):
         sum_probability = sum(probabilities)
         for i in range(len(probabilities)):
             probabilities[i] = float(probabilities[i]) / sum_probability
-        #print 'self.condition_probabilities:', self.condition_probabilities
+        #print 'condition_probabilities:', probabilities
         return label, probabilities
 
     def __ComputeModelExpectation(self, instances, model):
@@ -158,6 +160,8 @@ class GISTrainer(Trainer):
         #print 'parameters update:', model.parameters
 
     def __IsConverged(self, new_log_likelihood):
+        # TODO: fix
+        return False
         if abs(float(new_log_likelihood - self.log_likelihood) / \
                 self.log_likelihood) < self.error_threshold:
             return True
