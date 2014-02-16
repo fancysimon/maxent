@@ -2,5 +2,8 @@
 from trainer import Trainer
 
 class LBFGSTrainer(Trainer):
-    def Train(self, model):
+    def Train(self, instances, model, iterations):
+        print 'iters   loglikelihood    training accuracy'
+        print '=========================================='
+        print '=========================================='
         return
