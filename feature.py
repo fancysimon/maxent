@@ -11,25 +11,30 @@ class Feature:
             return True
         return False
 
+    def __ne__(self, other):
+        return not (self == other)
+
     def __hash__(self):
         return hash((self.context, self.label))
 
-# class FeatureMap:
-#     def __init__(self):
-#         # Feature is feature function. One feature may contain many 
-#         # feature instances.
-#         self.feature_map = {}
-#         self.sum_value = 0
+    def __lt__(self, other):
+        if self.label < other.label:
+            return True
+        elif self.label > other.label:
+            return False
+        if self.context < other.context:
+            return True
+        elif self.context > other.context:
+            return False
+        return self.value < other.value
 
-#     def AddFeature(self, feature):
-#         if feature not in self.feature_map:
-#             self.feature_map[feature] = [feature]
-#         else:
-#             self.feature_map[feature].append(feature)
-#         self.sum_value += feature.value
+    def __str__(self):
+        return 'label:' + self.label + ' context:' + self.context + ' value:' + str(self.value)
 
-#     def SumValue(self):
-#         return self.sum_value
-
-#     def Size(self):
-#         return len(self.feature_map)
+if __name__ == '__main__':
+    feature_list = [Feature('context2', 'lebel2', 1),
+                    Feature('context1', 'lebel1', 1),
+                    Feature('context3', 'lebel3', 1)]
+    feature_list.sort()
+    for feature in feature_list:
+        print feature

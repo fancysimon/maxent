@@ -40,15 +40,16 @@ class GISTrainer(Trainer):
     def __InitFromModel(self, instances, model):
         # Compute |sum_count| and |context_counts|.
         self.context_counts = [0] * len(model.context_id_map)
+        self.sum_count = 0
         for instance in instances:
             context_id_map = {}
             for feature in instance.features:
                 context_id = model.context_id_map[feature.context]
                 context_id_map[context_id] = 1
             for context_id in context_id_map:
-                self.context_counts[context_id] += 1
-        self.sum_count = len(instances)
-        print 'Instance number:', self.sum_count
+                self.context_counts[context_id] += instance.count
+            self.sum_count += instance.count
+        #print 'Instance number:', self.sum_count
         #print 'self.context_counts:', self.context_counts
 
     def __ComputeEmpiricalExpectation(self, instances, model):
@@ -58,7 +59,8 @@ class GISTrainer(Trainer):
             for feature in instance.features:
                 context_id = model.context_id_map[feature.context]
                 feature_id = model.feature_id_map[feature]
-                expectations[feature_id] += 1.0 / self.sum_count * feature.value
+                expectations[feature_id] += \
+                        float(instance.count) / self.sum_count * feature.value
         self.empirical_expectations = expectations
         #print 'self.empirical_expectations:', self.empirical_expectations
 
@@ -69,9 +71,7 @@ class GISTrainer(Trainer):
         #print 'label:', instance.label
         #print 'features:', instance.features
         for feature in instance.features:
-            context = feature.context
-            #context_id = model.context_id_map[context]
-            
+            context = feature.context        
             for i in range(len(probabilities)):
                 label = model.labels[i]
                 feature2 = Feature(context, label, 0)
@@ -112,7 +112,7 @@ class GISTrainer(Trainer):
             #print 'label select:', label
             #print 'self.condition_probabilities:', self.condition_probabilities
             if label == instance.label:
-                correct_instance_count += 1
+                correct_instance_count += instance.count
             for feature in instance.features:
                 context_id = model.context_id_map[feature.context]
                 for i in range(len(model.labels)):
@@ -128,9 +128,10 @@ class GISTrainer(Trainer):
                 label_id2 = model.label_id_map[instance.label]
                 log_condition_probability = \
                         self.__SafeLog(self.condition_probabilities[label_id2])
-                log_likelihood += 1.0 / self.sum_count * \
+                log_likelihood += float(instance.count) / self.sum_count * \
                         log_condition_probability
         #print 'self.model_expectations:', self.model_expectations
+        #print 'log_likelihood:', log_likelihood
         correct_rate = float(correct_instance_count) / self.sum_count
         return correct_rate, log_likelihood
 

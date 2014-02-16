@@ -28,8 +28,6 @@ class Model:
                     context_map[feature.context] = 1
                     self.contexts.append(feature.context)
 
-        # TODO: Delete feature by |cutoff|.
-
         self.feature_size = len(self.feature_map)
         self.parameters = [0.0] * self.feature_size
 

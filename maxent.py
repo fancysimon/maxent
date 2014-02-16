@@ -57,9 +57,8 @@ def ParseOptions():
         sys.exit(1)
     return options
 
-def LoadInstances(input_file):
+def LoadInstances(input_file, cutoff):
     instances = []
-    print 'LoadInstances'
     for line in input_file:
         line = line.rstrip('\n')
         if line == '':
@@ -67,12 +66,38 @@ def LoadInstances(input_file):
         instance = Instance()
         instance.LoadFromText(line)
         instances.append(instance)
-    print 'LoadInstances end'
+    print 'Load %d instances.' % len(instances)
+    if len(instances) == 0:
+        print 'There must be more than 0 instances for training maxent model.'
+        sys.exit(1)
     sys.stdout.flush()
+    instances = MergeInstances(instances, cutoff)
+    print 'There are %d instances after merging.' % len(instances)
+    if len(instances) == 0:
+        print 'There must be more than 0 instances for training maxent model.'
+        sys.exit(1)
     return instances
 
+def MergeInstances(instances, cutoff):
+    # Merge instances.
+    instances.sort()
+    last_instance = instances[0]
+    for i in range(1, len(instances)):
+        instance = instances[i]
+        if instance == last_instance:
+            last_instance.count += instance.count
+            instance.count = 0
+        else:
+            last_instance = instance
+    # Delete feature by |cutoff| and delete feature with |count| equal 0.
+    merged_instances = []
+    for instance in instances:
+        if instance.count >= cutoff:
+            merged_instances.append(instance)
+    return merged_instances
+
 def Train(options):
-    instances = LoadInstances(options.input)
+    instances = LoadInstances(options.input, options.cutoff)
     if instances == None:
         logging.error('Training instances format is not valid.')
         sys.exit(1)
